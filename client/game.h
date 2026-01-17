@@ -14,7 +14,6 @@ class Game {
     private:
     int score;
     int niveau;
-
     std::string msg;
 
     public:
@@ -22,8 +21,8 @@ class Game {
     std::vector<object> objs;
     object current;
     object next;
-	bool justLost;
-	int linesToSend;
+    bool justLost;
+    int linesToSend;
     Music music;
     Sound rotate_sound;
     Sound destroy_sound;
@@ -38,8 +37,7 @@ class Game {
         return niveau;
     }
 
-    void set_msg(std::string m)
-    {
+    void set_msg(std::string m) {
         msg = m;
     }
 
@@ -67,11 +65,9 @@ class Game {
         object objZ = object();
         objZ.make_Z();
         return  {objT, objO, objI, objJ, objL, objS, objZ};
-
     }
 
     object get_random_object() {
-
         if (objs.empty()) {
             objs = get_all_objects();
         }
@@ -88,17 +84,15 @@ class Game {
 
     Game() {
         grid = object();
-        //grid.matrice[grid.line-1][0] = 1;
         objs = get_all_objects();
         current = get_random_object();
         next = get_random_object();
         set_score(0);
         set_niveau(0);
         set_msg("");
-		justLost = false;
-		linesToSend = 0;
-        //InitAudioDevice();
-        music = LoadMusicStream(    "sounds/cover.mp3");
+        justLost = false;
+        linesToSend = 0;
+        music = LoadMusicStream("sounds/cover.mp3");
         PlayMusicStream(music);
         rotate_sound = LoadSound("sounds/rotate.wav");
         destroy_sound = LoadSound("sounds/destroy.wav");
@@ -108,24 +102,19 @@ class Game {
         UnloadMusicStream(music);
         UnloadSound(destroy_sound);
         UnloadSound(rotate_sound);
-        //CloseAudioDevice();
     }
 
-
-
-	void apply_network_message(const std::string& msg) {
-    	if (msg.rfind("LINES|", 0) == 0) {
-        	int n = std::stoi(msg.substr(6));
-        	for (int i = 0; i < n; i++)
-            	add_garbage_line();
-        	set_msg("ATTACK !");
-    	}
-    	else if (msg == "GAMEOVER") {
-        	set_msg("ENNEMI PERDU");
-    	}
-	}
-
-
+    void apply_network_message(const std::string& msg) {
+        if (msg.rfind("LINES|", 0) == 0) {
+            int n = std::stoi(msg.substr(6));
+            for (int i = 0; i < n; i++)
+                add_garbage_line();
+            set_msg("ATTACK !");
+        }
+        else if (msg == "GAMEOVER") {
+            set_msg("VICTOIRE!");
+        }
+    }
 
     void add_garbage_line() {
         std::random_device rd;
@@ -147,9 +136,6 @@ class Game {
         for (int i = 0; i<grid.line; i++) if (i!=rand_num) grid.matrice[i][j] = 1;
     }
 
-
-
-
     void dessiner() {
         int x = grid.line;
         int y = grid.column;
@@ -160,8 +146,8 @@ class Game {
         if (temp2.checkintersection(temp1)) temp1.add(temp2);
         if (!loose()) temp1.dessiner();
         else grid.dessiner();
-
     }
+
     void reset() {
         grid = object();
         objs = get_all_objects();
@@ -170,8 +156,8 @@ class Game {
         set_score(0);
         set_niveau(0);
         set_msg("");
-		justLost = false;
-		linesToSend = 0;
+        justLost = false;  // CORRECTION: réinitialiser justLost
+        linesToSend = 0;
     }
 
     void input() {
@@ -187,7 +173,6 @@ class Game {
                 }
                 else break;
 
-
             case KEY_LEFT:
                 if (current.check_left(grid)) {
                     current.translate_g();
@@ -198,7 +183,6 @@ class Game {
             case KEY_DOWN:
                 if (current.check_collision(grid)==true && !loose() && current.checkintersection(grid)) {
                     grid.add(current);
-                    //grid.printmatrice();
                     current = next;
                     next = get_random_object();
                 }
@@ -212,11 +196,9 @@ class Game {
                 }
                 else break;
 
-
             case KEY_ENTER:
                 current.translate_haut();
                 break;
-
         }
     }
 
@@ -237,33 +219,27 @@ class Game {
                         current.translate_haut();
                     }
                 }
-
             }
             if (current.check_collision(grid)) {
                 grid.add(current);
-                //grid.printmatrice();
                 if (!loose()) {
                     current = next;
                     next = get_random_object();
                 }
-
             }
             else {
                 current.translate_bas();
-
             }
         }
-
     }
 
     bool loose() {
         for (int i=0; i < grid.line; i++) {
             if (grid.matrice[i][0]!=0) {
-                //set_msg("GAME OVER");
-    			if (!justLost) {
-    				set_msg("GAME OVER");
-    				justLost = true;
-				}
+                if (!justLost) {
+                    set_msg("GAME OVER");
+                    justLost = true;
+                }
                 return true;
             }
         }
@@ -299,15 +275,9 @@ class Game {
             int sc = get_score() + calcscore(nb, niv);
             set_score(sc) ;
             set_niveau(sc/1000);
-            //network_send("LINES|" + std::to_string(nb) + "\n");
-			linesToSend = linesToSend + nb;
-
+            linesToSend = linesToSend + nb;
         }
-
     }
-
 };
 
-
 #endif //TETRISONLINE_GAME_H
-
