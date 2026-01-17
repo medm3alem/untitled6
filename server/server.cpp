@@ -5,8 +5,11 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <algorithm>
+#include <mutex>
 
 std::vector<int> clients;
+std::mutex clients_mutex;
+
 
 void handle_client(int client_socket) {
     char buffer[256];
@@ -20,11 +23,19 @@ void handle_client(int client_socket) {
         std::cout << "Received: " << msg << std::endl;
 
         // Broadcast à tous les autres clients
-        for (int c : clients) {
-            if (c != client_socket) {
-                send(c, msg.c_str(), msg.size(), 0);
-            }
-        }
+
+
+    	std::lock_guard<std::mutex> lock(clients_mutex);
+    	for (int c : clients) {
+        	if (c != client_socket) {
+            	send(c, msg.c_str(), msg.size(), 0);
+        	}
+    	}
+
+
+
+
+
     }
 
     close(client_socket);
@@ -47,6 +58,7 @@ int main() {
 
     while (true) {
         int client_socket = accept(server_fd, nullptr, nullptr);
+		std::lock_guard<std::mutex> lock(clients_mutex);
         clients.push_back(client_socket);
 
         std::thread(handle_client, client_socket).detach();

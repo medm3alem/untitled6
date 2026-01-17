@@ -7,6 +7,7 @@ find_package(raylib REQUIRED)
 
 add_executable(tetris
         main.cpp
+        network.cpp
 )
 
 target_include_directories(tetris PRIVATE .)

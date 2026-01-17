@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/tetris.dir/main.cpp.o CMakeFiles/tetris.dir/network.cpp.o -o tetris  /usr/local/lib/libraylib.a -lpthread -lm 

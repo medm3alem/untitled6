@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 #include <set>
+#include "network.h"
+
 
 class Game {
 
@@ -20,6 +22,8 @@ class Game {
     std::vector<object> objs;
     object current;
     object next;
+	bool justLost;
+	int linesToSend;
     Music music;
     Sound rotate_sound;
     Sound destroy_sound;
@@ -91,6 +95,8 @@ class Game {
         set_score(0);
         set_niveau(0);
         set_msg("");
+		justLost = false;
+		linesToSend = 0;
         //InitAudioDevice();
         music = LoadMusicStream(    "sounds/cover.mp3");
         PlayMusicStream(music);
@@ -105,44 +111,40 @@ class Game {
         //CloseAudioDevice();
     }
 
-    void apply_network_message(const std::string& msg) {
-        if (msg.find("LINES|") == 0) {
-            int n = std::stoi(msg.substr(6));
-            add_garbage_lines(n);
-            set_msg("ATTACK!");
-        }
 
-        if (msg.find("GAMEOVER") == 0) {
-            set_msg("ENNEMI PERDU");
-        }
-    }
 
-    void add_garbage_lines(int n) {
-        for (int k = 0; k < n; k++) {
+	void apply_network_message(const std::string& msg) {
+    	if (msg.rfind("LINES|", 0) == 0) {
+        	int n = std::stoi(msg.substr(6));
+        	for (int i = 0; i < n; i++)
+            	add_garbage_line();
+        	set_msg("ATTACK !");
+    	}
+    	else if (msg == "GAMEOVER") {
+        	set_msg("ENNEMI PERDU");
+    	}
+	}
 
-            // 1️⃣ Vérifier overflow (game over)
-            for (int x = 0; x < grid.line; x++) {
-                if (grid[0][x] != 0) {
-                    game_over = true;
-                    set_msg("GAME OVER");
-                    return;
-                }
+
+
+    void add_garbage_line() {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dist(0, grid.line -1);
+
+        int rand_num = dist(gen);
+        int i=grid.line-1;
+        int j=grid.column-1;
+        bool found = false;
+        for (; j >= 0; j--) {
+            i=grid.line-1;
+            found = true;
+            for (; i>=0; i--) {
+                if (grid.matrice[i][j]!=0) found = false;
             }
-
-            // 2️⃣ Décaler la grille vers le haut
-            for (int y = 0; y < HEIGHT - 1; y++) {
-                for (int x = 0; x < WIDTH; x++) {
-                    grid[y][x] = grid[y + 1][x];
-                }
-            }
-
-            // 3️⃣ Créer une ligne pleine avec un trou
-            int hole = GetRandomValue(0, WIDTH - 1);
-
-            for (int x = 0; x < WIDTH; x++) {
-                grid[HEIGHT - 1][x] = (x == hole) ? 0 : 8;
-            }
+            if (found) break ;
         }
+        for (int i = 0; i<grid.line; i++) if (i!=rand_num) grid.matrice[i][j] = 1;
     }
 
 
@@ -168,6 +170,8 @@ class Game {
         set_score(0);
         set_niveau(0);
         set_msg("");
+		justLost = false;
+		linesToSend = 0;
     }
 
     void input() {
@@ -255,7 +259,11 @@ class Game {
     bool loose() {
         for (int i=0; i < grid.line; i++) {
             if (grid.matrice[i][0]!=0) {
-                set_msg("GAME OVER");
+                //set_msg("GAME OVER");
+    			if (!justLost) {
+    				set_msg("GAME OVER");
+    				justLost = true;
+				}
                 return true;
             }
         }
@@ -291,7 +299,8 @@ class Game {
             int sc = get_score() + calcscore(nb, niv);
             set_score(sc) ;
             set_niveau(sc/1000);
-            net.send_message("LINES|" + std::to_string(nb) + "\n");
+            //network_send("LINES|" + std::to_string(nb) + "\n");
+			linesToSend = linesToSend + nb;
 
         }
 

@@ -1,6 +1,6 @@
 #include "raylib.h"
 #include "objets.h"
-#include "../game.h"
+#include "game.h"
 #include <string>
 #include "network.h"
 
@@ -19,6 +19,8 @@ bool event(double time) {
 
 
 int main() {
+	signal(SIGPIPE, SIG_IGN);
+
     network_connect();
     network_start_listener();
 
@@ -115,6 +117,19 @@ int main() {
         jeu.dessiner();
         jeu.dessiner_next();
         jeu.destroy();
+
+
+		if (jeu.linesToSend > 0) {
+    		network_send("LINES|" + std::to_string(jeu.linesToSend) + "\n");
+    		jeu.linesToSend = 0;
+		}
+
+		if (jeu.justLost) {
+    		network_send("GAMEOVER\n");
+    		jeu.justLost = false;
+		}
+
+
 
         char sc[10];
         sprintf(sc, "%d", jeu.get_score());
