@@ -1,11 +1,11 @@
+#ifndef TETRISONLINE_OBJETS_H
+#define TETRISONLINE_OBJETS_H
+
 #include <iostream>
 #include <numeric>
 #include <vector>
 #include <algorithm>
 #include "raylib.h"
-#ifndef TETRISONLINE_OBJETS_H
-//#define UNTITLED4_OBJETS_H
-#define TETRISONLINE_OBJETS_H
 #include <unordered_set>
 
 

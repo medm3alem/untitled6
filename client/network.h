@@ -2,6 +2,7 @@
 #include <string>
 
 void network_connect();
+void disconnect();
 void network_send(const std::string& msg);
 void network_start_listener();
 bool network_has_message();

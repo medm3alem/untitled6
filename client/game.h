@@ -23,6 +23,9 @@ class Game {
     object next;
     bool justLost;
     int linesToSend;
+    int mode;
+    int start;
+    bool ingame;
     Music music;
     Sound rotate_sound;
     Sound destroy_sound;
@@ -96,6 +99,9 @@ class Game {
         PlayMusicStream(music);
         rotate_sound = LoadSound("sounds/rotate.wav");
         destroy_sound = LoadSound("sounds/destroy.wav");
+        mode = 0;
+        start = 0;
+        ingame = false;
     }
 
     ~Game() {
@@ -156,8 +162,11 @@ class Game {
         set_score(0);
         set_niveau(0);
         set_msg("");
-        justLost = false;  // CORRECTION: réinitialiser justLost
+        justLost = false;
         linesToSend = 0;
+        mode = 0;
+        start = 0;
+        ingame = false;
     }
 
     void input() {

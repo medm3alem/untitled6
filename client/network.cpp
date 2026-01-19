@@ -8,14 +8,14 @@
 #include <cstring>
 #include <errno.h>
 
-bool network_alive = false;  // Changé : commence à false
+bool network_alive = false;
 
 int sock = -1;
 std::queue<std::string> messages;
 std::mutex msg_mutex;
 
 void network_connect() {
-    sock = socket(AF_INET, SOCK_STREAM, 0);
+    sock = socket(AF_INET, SOCK_STREAM, 0);  //crée une socket TCP IPv4
     if (sock < 0) {
         std::cerr << "ERROR: Socket creation failed: " << strerror(errno) << std::endl;
         return;
@@ -24,10 +24,11 @@ void network_connect() {
 
     sockaddr_in server{};
     server.sin_family = AF_INET;
-    server.sin_port = htons(4242);
+    server.sin_port = htons(4242); // port serveur
 
-    // Pour tester en local d'abord
-    const char* server_ip = "192.168.1.14";  // Changez en "192.168.1.14" pour réseau local
+
+    //const char* server_ip = "192.168.1.14";
+    const char* server_ip = "192.168.56.1";
 
     if (inet_pton(AF_INET, server_ip, &server.sin_addr) <= 0) {
         std::cerr << "ERROR: Invalid address: " << server_ip << std::endl;
@@ -46,8 +47,20 @@ void network_connect() {
     }
 
     network_alive = true;  // Seulement ici après succès
-    std::cout << "✓ Connected to server successfully!" << std::endl;
+    std::cout << "Connected to server successfully!" << std::endl;
 }
+
+
+void disconnect() {
+    network_send("QUIT\n");
+    if (sock >= 0) {
+        shutdown(sock, SHUT_RDWR);
+        close(sock);
+        sock = -1;
+    }
+    network_alive = false;
+}
+
 
 void network_send(const std::string& msg) {
     if (!network_alive || sock < 0) {
@@ -56,16 +69,17 @@ void network_send(const std::string& msg) {
         return;
     }
 
-    int sent = send(sock, msg.c_str(), msg.size(), 0);
+    int sent = send(sock, msg.c_str(), msg.size(), 0); //envoie message
     if (sent < 0) {
         std::cerr << "ERROR: Send failed: " << strerror(errno) << std::endl;
         network_alive = false;
     } else {
-        std::cout << "✓ Sent: " << msg;
+        std::cout << "Sent: " << msg;
     }
 }
 
 void network_start_listener() {
+// on ecoute le serveur mais au meme temps le serveur continue à tourner
     std::thread([](){
         char buffer[256];
         std::string accumulated;
@@ -89,15 +103,16 @@ void network_start_listener() {
             accumulated += std::string(buffer);
 
             // Traiter tous les messages complets (terminés par \n)
+			// decoupage par \n
             size_t pos;
             while ((pos = accumulated.find('\n')) != std::string::npos) {
                 std::string msg = accumulated.substr(0, pos);
                 accumulated = accumulated.substr(pos + 1);
 
                 if (!msg.empty()) {
-                    std::cout << "✓ Received: " << msg << std::endl;
+                    std::cout << "Received: " << msg << std::endl;
                     std::lock_guard<std::mutex> lock(msg_mutex);
-                    messages.push(msg);
+                    messages.push(msg); // message mis en file
                 }
             }
         }

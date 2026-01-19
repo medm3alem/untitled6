@@ -33,6 +33,16 @@ void handle_client(int client_socket) {
 
             std::cout << "Received from " << client_socket << ": " << msg;
 
+            if (msg == "QUIT\n") {
+                std::cout << "Client " << client_socket << " sent QUIT command" << std::endl;
+                close(client_socket);
+                {
+                    std::lock_guard<std::mutex> lock(clients_mutex);
+                    clients.erase(std::remove(clients.begin(), clients.end(), client_socket), clients.end());
+                }
+                return;
+            }
+
             // Broadcast à tous les autres clients
             std::vector<int> clients_copy;
             {
@@ -51,15 +61,15 @@ void handle_client(int client_socket) {
         }
     }
 
-    close(client_socket);
+    close(client_socket); // Fermer la socket du client
 
     std::lock_guard<std::mutex> lock(clients_mutex);
-    clients.erase(std::remove(clients.begin(), clients.end(), client_socket), clients.end());
+    clients.erase(std::remove(clients.begin(), clients.end(), client_socket), clients.end()); //
     std::cout << "Remaining clients: " << clients.size() << std::endl;
 }
 
 int main() {
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0); // Création de la socket
 
     // Permettre la réutilisation du port
     int opt = 1;
