@@ -1,4 +1,4 @@
-#include "raylib.h"
+/*#include "raylib.h"
 #include "objets.h"
 #include "game.h"
 #include <string>
@@ -26,19 +26,16 @@ int main() {
 
 
     Color darkblue = {44,44,127, 255};
-    InitWindow(500, 620, "TETRIS");
+    InitWindow(600, 620, "TETRIS");
     InitAudioDevice();
     //SetAudioStreamBufferSizeDefault(2048);
     SetTargetFPS(60);
     Game jeu = Game();
-/*
-jeu.mode : 0 solo
-            1 en ligne
-*/
-    if (jeu.mode == 1){
-        network_connect();
-        network_start_listener();
-    }
+
+//jeu.mode : false solo
+//            true en ligne
+
+
 
 
 
@@ -57,15 +54,32 @@ jeu.mode : 0 solo
     while (!WindowShouldClose()) {
         UpdateMusicStream(jeu.music);
 
-        
-        while (network_has_message() && jeu.mode == 1) {
-            std::string msg = network_pop_message();
-            std::cout << "Processing message: " << msg << std::endl;
-            jeu.apply_network_message(msg);
+
+        if (jeu.mode && !connected) {
+            // On vient de passer en mode online
+            std::cout << "Switching to ONLINE mode - connecting to server..." << std::endl;
+            network_connect();
+            network_start_listener();
+            connected = true;
+        } else if (!jeu.mode && connected) {
+            // On vient de passer en mode solo
+            std::cout << "Switching to SOLO mode - disconnecting..." << std::endl;
+            disconnect();
+            connected = false;
         }
 
-        if (jeu.start == 1) jeu.input();
-        if (event(0.2/(jeu.get_niveau()+1)) && jeu.mode!=2) jeu.move_down();
+
+
+        if (jeu.mode && jeu.start){
+            while (network_has_message()) {
+                std::string msg = network_pop_message();
+                std::cout << "Processing message: " << msg << std::endl;
+                jeu.apply_network_message(msg);
+            }
+        }
+
+        if (jeu.start) jeu.input();
+        if (event(0.2/(jeu.get_niveau()+1)) && jeu.start) jeu.move_down();
 
         BeginDrawing();
         ClearBackground(darkblue);
@@ -76,7 +90,8 @@ jeu.mode : 0 solo
 
 
 
-
+        Color col_mode;
+        Color col_start;
 
         Rectangle btn_mode = { 320, 490, 120, 40 };
         Rectangle btn_start = { 500, 490, 120, 40 };
@@ -86,38 +101,59 @@ jeu.mode : 0 solo
         bool hover_mode = CheckCollisionPointRec(mouse, btn_mode);
 
         if (hover_mode && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            jeu.mode = (jeu.mode +1) % 2;
+            jeu.mode = ! jeu.mode;
         }
 
         bool hover_start = CheckCollisionPointRec(mouse, btn_start);
 
         if (hover_start && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            jeu.start = (jeu.start +1) % 2;
+            jeu.start = !jeu.start;
         }
 
         
-        // couleur selon l'état
-// baddel bouton mode game w bouton start 
-
-        Color col_mode;
-        if (jeu.mode == 0 && connected) {
+        
+        if (!jeu.mode) {
             col_mode = RED;
-            disconnect();
-            connected = false;
+            if (connected){
+                disconnect();
+                connected = false;
+            }
         }
-        if (jeu.mode == 1 && !connected) {
+        if (jeu.mode) {
             network_connect();
             network_start_listener();
             col_mode = GREEN;
             connected = true;
         }
 
-        const char* text_mode = (jeu.mode == 0) ? "SOLO" : "ONLINE";
 
+        
+        if (!jeu.start) {
+            col_start = RED;
+        }
+        if (jeu.start) {
+            col_start = GREEN;
+        }
+
+
+
+        const char* text_mode = (jeu.mode) ? "ONLINE" : "SOLO";
+        const char* text_start = (jeu.start) ? "START" : "PAUSE";
+
+        DrawRectangleRounded(btn_mode, 0.3f, 6, col_mode);
         DrawText(
             text_mode,
             btn_mode.x + 10,
             btn_mode.y + 10,
+            20,
+            WHITE
+        );
+
+        DrawRectangleRounded(btn_start, 0.3f, 6, col_start);
+        DrawText(
+            text_start,
+            btn_start.x + 10,
+            btn_start.y + 10,
             20,
             WHITE
         );
@@ -169,7 +205,7 @@ jeu.mode : 0 solo
         jeu.destroy();
 
         // Envoi des lignes à l'adversaire
-        if (jeu.linesToSend > 0 && jeu.mode == 1) {
+        if (jeu.linesToSend > 0 && jeu.mode) {
             std::string msg = "LINES|" + std::to_string(jeu.linesToSend) + "\n";
             network_send(msg);
             std::cout << "Sending " << jeu.linesToSend << " lines to opponent" << std::endl;
@@ -177,7 +213,7 @@ jeu.mode : 0 solo
         }
 
         // Envoi du game over
-        if (jeu.justLost && jeu.mode == 1) {
+        if (jeu.justLost && jeu.mode) {
             network_send("GAMEOVER\n");
             std::cout << "Sending GAMEOVER" << std::endl;
             jeu.justLost = false;
@@ -195,6 +231,196 @@ jeu.mode : 0 solo
         DrawText(lvl, 345,168, 27, BLACK);
 
         EndDrawing();
+    }
+
+    if (connected) {
+        disconnect();
+    }
+
+    CloseAudioDevice();
+    CloseWindow();
+    return 0;
+}
+
+*/
+
+#include "raylib.h"
+#include "objets.h"
+#include "game.h"
+#include <string>
+#include "network.h"
+#include <csignal>
+
+
+double last_update = 0;
+bool was_mode_online = false;  // Pour tracker le changement de mode
+
+bool event(double time) {
+    double current_time = GetTime();
+    if (current_time - last_update > time) {
+        last_update = current_time;
+        return true;
+    }
+    return false;
+}
+
+
+int main() {
+    signal(SIGPIPE, SIG_IGN);
+
+    Color darkblue = {44,44,127, 255};
+    InitWindow(600, 620, "TETRIS");
+    InitAudioDevice();
+    SetTargetFPS(60);
+    Game jeu = Game();
+
+    SetMusicVolume(jeu.music, 0.3f);
+    SetSoundVolume(jeu.destroy_sound, 1.0f);
+    SetSoundVolume(jeu.rotate_sound, 0.5f);
+    ClearBackground(darkblue);
+
+    float volume = 0.5f;
+
+    Rectangle sliderBar   = { 320, 580, 150, 8 };
+    Rectangle sliderKnob  = { 320 + 150 * volume - 6, 574, 12, 16 };
+
+    bool dragging = false;
+
+    while (!WindowShouldClose()) {
+        UpdateMusicStream(jeu.music);
+
+        // CORRECTION: Gérer la connexion/déconnexion seulement quand le mode change
+        if (jeu.mode && !was_mode_online) {
+            // On vient de passer en mode online
+            std::cout << "Switching to ONLINE mode - connecting to server..." << std::endl;
+            network_connect();
+            network_start_listener();
+            was_mode_online = true;
+        } else if (!jeu.mode && was_mode_online) {
+            // On vient de passer en mode solo
+            std::cout << "Switching to SOLO mode - disconnecting..." << std::endl;
+            disconnect();
+            was_mode_online = false;
+        }
+
+        // Traiter les messages réseau seulement si en mode online
+        if (jeu.mode && jeu.start) {
+            while (network_has_message()) {
+                std::string msg = network_pop_message();
+                std::cout << "Processing message: " << msg << std::endl;
+                jeu.apply_network_message(msg);
+            }
+        }
+
+        if (jeu.start == 1) jeu.input();
+        if (event(0.2/(jeu.get_niveau()+1)) && jeu.start) jeu.move_down();
+
+        BeginDrawing();
+        ClearBackground(darkblue);
+        DrawText("Score", 345,15, 38, WHITE);
+        DrawText("level", 365,125, 38, WHITE);
+        DrawText("Next", 365,210, 38, WHITE);
+
+        Color col_mode;
+        Color col_start;
+
+        Rectangle btn_mode = { 320, 490, 120, 40 };
+        Rectangle btn_start = { 500, 490, 120, 40 };
+
+        Vector2 mouse = GetMousePosition();
+
+        bool hover_mode = CheckCollisionPointRec(mouse, btn_mode);
+
+        if (hover_mode && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            jeu.mode = !jeu.mode;
+        }
+
+        bool hover_start = CheckCollisionPointRec(mouse, btn_start);
+
+        if (hover_start && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            jeu.start = !jeu.start;
+        }
+
+        // Couleurs des boutons
+        col_mode = jeu.mode ? GREEN : RED;
+        col_start = jeu.start ? GREEN : RED;
+
+        const char* text_mode = jeu.mode ? "ONLINE" : "SOLO";
+        const char* text_start = jeu.start ? "START" : "PAUSE";
+
+        DrawRectangleRounded(btn_mode, 0.3f, 6, col_mode);
+        DrawText(text_mode, btn_mode.x + 10, btn_mode.y + 10, 20, WHITE);
+
+        DrawRectangleRounded(btn_start, 0.3f, 6, col_start);
+        DrawText(text_start, btn_start.x + 10, btn_start.y + 10, 20, WHITE);
+
+        // Volume slider
+        DrawText("Volume", 320, 550, 20, WHITE);
+        DrawRectangleRounded(sliderBar, 0.5f, 6, GRAY);
+        DrawRectangleRounded(sliderKnob, 0.5f, 6, WHITE);
+
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+            CheckCollisionPointRec(mouse, sliderKnob)) {
+            dragging = true;
+        }
+
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+            dragging = false;
+        }
+
+        if (dragging) {
+            sliderKnob.x = mouse.x - sliderKnob.width / 2;
+
+            if (sliderKnob.x < sliderBar.x)
+                sliderKnob.x = sliderBar.x;
+
+            if (sliderKnob.x > sliderBar.x + sliderBar.width - sliderKnob.width)
+                sliderKnob.x = sliderBar.x + sliderBar.width - sliderKnob.width;
+
+            volume = (sliderKnob.x - sliderBar.x) /
+                     (sliderBar.width - sliderKnob.width);
+
+            SetMasterVolume(volume);
+        }
+
+        DrawText(jeu.get_msg().c_str(), 320, 440, 27, WHITE);
+        DrawRectangleRounded({320, 55, 170, 60}, 0.3, 6, {59, 85, 162, 255});
+        DrawRectangleRounded({320, 260, 170, 140}, 0.3, 6, {59, 85, 162, 255});
+        DrawRectangleRounded({320, 160, 170, 40}, 0.3, 6, {59, 85, 162, 255});
+
+        jeu.dessiner();
+        jeu.dessiner_next();
+        jeu.destroy();
+
+        // Envoi des lignes à l'adversaire (seulement en mode online)
+        if (jeu.linesToSend > 0 && jeu.mode) {
+            std::string msg = "LINES|" + std::to_string(jeu.linesToSend) + "\n";
+            network_send(msg);
+            std::cout << "Sending " << jeu.linesToSend << " lines to opponent" << std::endl;
+            jeu.linesToSend = 0;
+        }
+
+        // Envoi du game over (seulement en mode online)
+        if (jeu.justLost && jeu.mode) {
+            network_send("GAMEOVER\n");
+            std::cout << "Sending GAMEOVER" << std::endl;
+            jeu.justLost = false;
+        }
+
+        char sc[10];
+        sprintf(sc, "%d", jeu.get_score());
+        DrawText(sc, 345,70, 27, BLACK);
+
+        char lvl[10];
+        sprintf(lvl, "%d", jeu.get_niveau());
+        DrawText(lvl, 345,168, 27, BLACK);
+
+        EndDrawing();
+    }
+
+    // Déconnexion propre avant de quitter
+    if (was_mode_online) {
+        disconnect();
     }
 
     CloseAudioDevice();

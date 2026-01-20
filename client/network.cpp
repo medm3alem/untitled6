@@ -28,7 +28,8 @@ void network_connect() {
 
 
     //const char* server_ip = "192.168.1.14";
-    const char* server_ip = "192.168.56.1";
+    //const char* server_ip = "192.168.56.1";
+    const char* server_ip = "10.90.234.220";
 
     if (inet_pton(AF_INET, server_ip, &server.sin_addr) <= 0) {
         std::cerr << "ERROR: Invalid address: " << server_ip << std::endl;
