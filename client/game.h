@@ -120,6 +120,7 @@ class Game {
         else if (msg == "GAMEOVER") {
             set_msg("VICTOIRE!");
             fin_partie_online = true;
+            start = false;
         }
     }
 
