@@ -22,6 +22,7 @@ class Game {
     object current;
     object next;
     bool justLost;
+    bool waiting;
     int linesToSend;
     bool mode;
     bool start;
@@ -102,6 +103,7 @@ class Game {
         mode = false;
         start = false;
         fin_partie_online = false;
+        waiting = true;
     }
 
     ~Game() {
@@ -169,6 +171,7 @@ class Game {
         mode = false;
         start = false;
         fin_partie_online = false;
+        waiting = true;
     }
 
     void input() {

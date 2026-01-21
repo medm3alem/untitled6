@@ -10,6 +10,7 @@
 
 std::vector<int> clients;
 std::mutex clients_mutex;
+int ready_players = 0;
 
 void handle_client(int client_socket) {
     char buffer[256];
@@ -32,6 +33,14 @@ void handle_client(int client_socket) {
             accumulated = accumulated.substr(pos + 1);
 
             std::cout << "Received from " << client_socket << ": " << msg;
+            if (msg=="READY"){
+                ready_players++;
+
+                if (ready_players == 2) {
+                    send_to_all("MATCH_START\n");
+                    ready_players = 0;
+                }
+            }
 
             if (msg == "QUIT\n") {
                 std::cout << "Client " << client_socket << " sent QUIT command" << std::endl;

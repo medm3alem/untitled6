@@ -12,6 +12,7 @@ bool started = false;
 bool block_start = false;
 bool block_mode = false;
 bool connecting = false;
+bool waiting_opponent = false;
 
 bool event(double time) {
     double current_time = GetTime();
@@ -70,6 +71,7 @@ int main() {
             network_start_listener();
             connected = true;
             connecting = false;
+            network_send("READY\n");
         }
 
 
@@ -85,12 +87,9 @@ int main() {
             // La partie en ligne est terminée
             std::cout << "Online game finished - disconnecting..." << std::endl;
             disconnect();
-            /*
-            connected = false;
-            jeu.start = false;
-            jeu.fin_partie_online = false;
-            jeu.mode = false;*/
             jeu.reset();
+            jeu.set_msg("Victory!");
+            jeu.justLost = false;
             connected = false;
             connecting = false;
         }
@@ -98,16 +97,25 @@ int main() {
         if (connected && jeu.start){
             while (network_has_message()) {
                 std::string msg = network_pop_message();
+
+                if (msg == "MATCH_START") {
+                    std::cout << "Opponent found!\nStarting game" << std::endl;
+                    jeu.set_msg("Opponent found!\nStarting game");
+                    waiting_opponent = false;
+                    jeu.waiting = false;
+                    jeu.start = true;
+                    block_start = false;
+                }
                 std::cout << "Processing message: " << msg << std::endl;
-                jeu.apply_network_message(msg);
+                else jeu.apply_network_message(msg);
             }
         }
 
 
 
 
-        if (jeu.start) jeu.input();
-        if (event(0.2/(jeu.get_niveau()+1)) && jeu.start) jeu.move_down();
+        if (jeu.start && (!jeu.mode || !waiting_opponent)) jeu.input();
+        if (event(0.2/(jeu.get_niveau()+1)) && jeu.start && (!jeu.mode || !waiting_opponent)) jeu.move_down();
 
         BeginDrawing();
         ClearBackground(darkblue);
@@ -132,34 +140,53 @@ int main() {
             if (jeu.mode){
                 block_start = true;
                 block_mode = true;
+                waiting_opponent = true;
             }
             else block_start = false;
         }
 
         bool hover_start = CheckCollisionPointRec(mouse, btn_start);
 
-        if (hover_start && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !block_start && ! jeu.justLost) {
+        if (hover_start && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && (jeu.waiting || !jeu.mode) && ! jeu.justLost) {
             jeu.start = !jeu.start;
             started = true;
             block_mode = true;
+            jeu.waiting = false;
         }
 
-        
-        
+/*
+jeu.mode = true;
+block_start = true;
+block_mode = true;
+
+
+*/
+
         if (! block_mode && !jeu.justLost) col_mode = jeu.mode ? GREEN : RED;
         else {
             col_mode = GRAY;
         }
-        
-        if (!block_start && !jeu.justLost) col_start = jeu.start ? GREEN : RED;
-        else{
+
+
+        const char* text_start = "PAUSED";
+
+        if ((jeu.waiting || !jeu.mode) && !jeu.justLost) {
+            if (jeu.start) {
+                col_start = GREEN;
+                text_start = "START";
+            } else {
+                col_start = RED;
+                text_start = "PAUSED";
+            }
+        } else {
             col_start = GRAY;
-            //jeu.start = true;
+            text_start = "START";
         }
 
 
+
         const char* text_mode = (jeu.mode) ? "ONLINE" : "SOLO";
-        const char* text_start = (jeu.start) ? "START" : "PAUSED";
+
 
         DrawRectangleRounded(btn_mode, 0.3f, 6, col_mode);
         DrawText(
