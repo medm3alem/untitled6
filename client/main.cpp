@@ -82,6 +82,9 @@ int main() {
             std::cout << "Online game finished - disconnecting..." << std::endl;
             disconnect();
             connected = false;
+            jeu.start = false;
+            jeu.fin_partie_online = false;
+            jeu.mode = false;
         }
 
         if (connected && jeu.start){
