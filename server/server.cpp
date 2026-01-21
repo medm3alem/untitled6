@@ -39,7 +39,9 @@ void handle_client(int client_socket) {
                 {
                     std::lock_guard<std::mutex> lock(clients_mutex);
                     clients.erase(std::remove(clients.begin(), clients.end(), client_socket), clients.end());
+                    std::cout << "Remaining clients: " << clients.size() << std::endl;
                 }
+                
                 return;
             }
 
