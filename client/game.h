@@ -25,6 +25,7 @@ class Game {
     int linesToSend;
     bool mode;
     bool start;
+    bool fin_partie_online;
     Music music;
     Sound rotate_sound;
     Sound destroy_sound;
@@ -100,6 +101,7 @@ class Game {
         destroy_sound = LoadSound("sounds/destroy.wav");
         mode = false;
         start = false;
+        fin_partie_online = false;
     }
 
     ~Game() {
@@ -117,7 +119,7 @@ class Game {
         }
         else if (msg == "GAMEOVER") {
             set_msg("VICTOIRE!");
-            start = false;
+            fin_partie_online = true;
         }
     }
 
@@ -165,6 +167,7 @@ class Game {
         linesToSend = 0;
         mode = false;
         start = false;
+        fin_partie_online = false;
     }
 
     void input() {

@@ -77,6 +77,13 @@ int main() {
             connected = false;
         }
 
+        if (jeu.fin_partie_online && connected) {
+            // La partie en ligne est terminée
+            std::cout << "Online game finished - disconnecting..." << std::endl;
+            disconnect();
+            connected = false;
+        }
+
         if (connected && jeu.start){
             while (network_has_message()) {
                 std::string msg = network_pop_message();
