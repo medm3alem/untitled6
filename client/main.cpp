@@ -106,8 +106,9 @@ int main() {
                     jeu.start = true;
                     block_start = false;
                 }
-                std::cout << "Processing message: " << msg << std::endl;
                 else jeu.apply_network_message(msg);
+                std::cout << "Processing message: " << msg << std::endl;
+                
             }
         }
 
