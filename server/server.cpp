@@ -11,6 +11,7 @@
 std::vector<int> clients;
 std::mutex clients_mutex;
 int ready_players = 0;
+std::string start_msg = "MATCH_START\n";
 
 void handle_client(int client_socket) {
     char buffer[256];
@@ -33,13 +34,9 @@ void handle_client(int client_socket) {
             accumulated = accumulated.substr(pos + 1);
 
             std::cout << "Received from " << client_socket << ": " << msg;
-            if (msg=="READY"){
+            if (msg=="READY\n"){
                 ready_players++;
 
-                if (ready_players == 2) {
-                    send_to_all("MATCH_START\n");
-                    ready_players = 0;
-                }
             }
 
             if (msg == "QUIT\n") {
@@ -60,12 +57,18 @@ void handle_client(int client_socket) {
                 std::lock_guard<std::mutex> lock(clients_mutex);
                 clients_copy = clients;
             }
-
+            
             for (int c : clients_copy) {
                 if (c != client_socket) {
                     int sent = send(c, msg.c_str(), msg.size(), 0);
                     if (sent < 0) {
                         std::cout << "Failed to send to client " << c << std::endl;
+                    }
+
+                    
+                    if (ready_players == 2) {
+                        send(c,start_msg.c_str(), start_msg.size(), 0);
+                        ready_players = 0;
                     }
                 }
             }
