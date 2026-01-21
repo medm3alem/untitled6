@@ -26,18 +26,16 @@ bool event(double time) {
 int main() {
     signal(SIGPIPE, SIG_IGN); // pour ignorer quand on envoie sur une socket fermée
 
-
-
     Color darkblue = {44,44,127, 255};
     InitWindow(600, 620, "TETRIS");
     InitAudioDevice();
-    //SetAudioStreamBufferSizeDefault(2048);
+    //SetAudioStreamBufferSizeDefault(4096);
     SetTargetFPS(60);
     Game jeu = Game();
 
-/*jeu.mode : false solo
-            true en ligne
-*/
+//jeu.mode : false solo
+//            true en ligne
+
 
 
 
@@ -62,24 +60,33 @@ int main() {
             // On vient de passer en mode online
             std::cout << "Switching to ONLINE mode - connecting to server..." << std::endl;
             network_connect();
+        } 
+
+        if (jeu.mode && !connected && is_connected()) {
+            // Connexion établie
+            std::cout << "Connected to server!" << std::endl;
             network_start_listener();
             connected = true;
-        } else if (!jeu.mode && connected) {
+        }
+
+
+        if (!jeu.mode && connected) {
             // On vient de passer en mode solo
             std::cout << "Switching to SOLO mode - disconnecting..." << std::endl;
             disconnect();
             connected = false;
         }
 
-
-
-        if (jeu.mode && jeu.start){
+        if (connected && jeu.start){
             while (network_has_message()) {
                 std::string msg = network_pop_message();
                 std::cout << "Processing message: " << msg << std::endl;
                 jeu.apply_network_message(msg);
             }
         }
+
+
+
 
         if (jeu.start) jeu.input();
         if (event(0.2/(jeu.get_niveau()+1)) && jeu.start) jeu.move_down();
@@ -153,7 +160,7 @@ int main() {
             20,
             WHITE
         );
-    
+
 
 
         // volume slider
@@ -197,7 +204,7 @@ int main() {
         jeu.destroy();
 
         // Envoi des lignes à l'adversaire
-        if (jeu.linesToSend > 0 && jeu.mode) {
+        if (jeu.linesToSend > 0 && connected) {
             std::string msg = "LINES|" + std::to_string(jeu.linesToSend) + "\n";
             network_send(msg);
             std::cout << "Sending " << jeu.linesToSend << " lines to opponent" << std::endl;
@@ -211,7 +218,8 @@ int main() {
         }
 
         // Envoi du game over
-        if (jeu.justLost && jeu.mode) {
+        if (jeu.justLost && connected) {
+            
             network_send("GAMEOVER\n");
             std::cout << "Sending GAMEOVER" << std::endl;
             jeu.justLost = false;
@@ -219,7 +227,6 @@ int main() {
             jeu.mode = false;
             connected = false;
         }
-
 
 
 
@@ -242,4 +249,3 @@ int main() {
     CloseWindow();
     return 0;
 }
-

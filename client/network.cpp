@@ -7,50 +7,49 @@
 #include <iostream>
 #include <cstring>
 #include <errno.h>
+#include <fcntl.h>
 
 bool network_alive = false;
 
 int sock = -1;
 std::queue<std::string> messages;
 std::mutex msg_mutex;
+std::thread connection_thread;
 
-void network_connect() {
-    sock = socket(AF_INET, SOCK_STREAM, 0);  //crée une socket TCP IPv4
-    if (sock < 0) {
-        std::cerr << "ERROR: Socket creation failed: " << strerror(errno) << std::endl;
-        return;
-    }
-    std::cout << "Socket created successfully (fd=" << sock << ")" << std::endl;
+void network_connect(){
+// lancer la connexiion dans un thread séparé
+    connection_thread = std::thread([](){
+        sock = socket(AF_INET, SOCK_STREAM, 0);  //crée une socket TCP IPv4
+        if (sock < 0) {
+            std::cerr << "ERROR: Socket creation failed: " << strerror(errno) << std::endl;
+            return;
+        }
+        std::cout << "Socket created successfully (fd=" << sock << ")" << std::endl;
 
-    sockaddr_in server{};
-    server.sin_family = AF_INET;
-    server.sin_port = htons(4242); // port serveur
+        sockaddr_in server{};
+        server.sin_family = AF_INET;
+        server.sin_port = htons(4242); // port serveura
+        const char* server_ip = "10.90.234.220";
+        if (inet_pton(AF_INET, server_ip, &server.sin_addr) <= 0) {
+            std::cerr << "ERROR: Invalid address: " << server_ip << std::endl;
+            close(sock);
+            sock = -1;
+            return;
+        }
+        if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
+            std::cerr << "ERROR: Connection failed: " << strerror(errno) << std::endl;
+            std::cerr << "Make sure the server is running on " << server_ip << ":4242" << std::endl;
+            close(sock);
+            sock = -1;
+            return;
+        }
+        network_alive = true;  // Seulement ici après succès
+        std::cout << "Connected to server successfully!" << std::endl;
+    });
+    connection_thread.detach();
 
 
-    //const char* server_ip = "192.168.1.14";
-    //const char* server_ip = "192.168.56.1";
-    const char* server_ip = "10.90.234.220";
-
-    if (inet_pton(AF_INET, server_ip, &server.sin_addr) <= 0) {
-        std::cerr << "ERROR: Invalid address: " << server_ip << std::endl;
-        close(sock);
-        sock = -1;
-        return;
-    }
-    std::cout << "Attempting to connect to " << server_ip << ":4242..." << std::endl;
-
-    if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
-        std::cerr << "ERROR: Connection failed: " << strerror(errno) << std::endl;
-        std::cerr << "Make sure the server is running on " << server_ip << ":4242" << std::endl;
-        close(sock);
-        sock = -1;
-        return;
-    }
-
-    network_alive = true;  // Seulement ici après succès
-    std::cout << "Connected to server successfully!" << std::endl;
 }
-
 
 void disconnect() {
     network_send("QUIT\n");
@@ -61,7 +60,6 @@ void disconnect() {
     }
     network_alive = false;
 }
-
 
 void network_send(const std::string& msg) {
     if (!network_alive || sock < 0) {
@@ -80,7 +78,6 @@ void network_send(const std::string& msg) {
 }
 
 void network_start_listener() {
-// on ecoute le serveur mais au meme temps le serveur continue à tourner
     std::thread([](){
         char buffer[256];
         std::string accumulated;
@@ -104,7 +101,6 @@ void network_start_listener() {
             accumulated += std::string(buffer);
 
             // Traiter tous les messages complets (terminés par \n)
-			// decoupage par \n
             size_t pos;
             while ((pos = accumulated.find('\n')) != std::string::npos) {
                 std::string msg = accumulated.substr(0, pos);
@@ -126,6 +122,7 @@ void network_start_listener() {
     }).detach();
 }
 
+
 bool network_has_message() {
     std::lock_guard<std::mutex> lock(msg_mutex);
     return !messages.empty();
@@ -137,4 +134,8 @@ std::string network_pop_message() {
     std::string msg = messages.front();
     messages.pop();
     return msg;
+}
+
+bool is_connected() {
+    return network_alive;
 }

@@ -94,7 +94,7 @@ class Game {
         set_msg("");
         justLost = false;
         linesToSend = 0;
-        music = LoadMusicStream("sounds/cover.mp3");
+        music = LoadMusicStream("sounds/cover.wav");
         PlayMusicStream(music);
         rotate_sound = LoadSound("sounds/rotate.wav");
         destroy_sound = LoadSound("sounds/destroy.wav");
@@ -117,6 +117,7 @@ class Game {
         }
         else if (msg == "GAMEOVER") {
             set_msg("VICTOIRE!");
+            start = false;
         }
     }
 
